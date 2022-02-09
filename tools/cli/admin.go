@@ -535,9 +535,9 @@ func newAdminClusterCommands() []cli.Command {
 			},
 		},
 		{
-			Name:    "update-name",
+			Name:    "update",
 			Aliases: []string{"up"},
-			Usage:   "Update cluster name",
+			Usage:   "Update cluster",
 			Flags: append(
 				getDBFlags(),
 				cli.StringFlag{
@@ -549,6 +549,10 @@ func newAdminClusterCommands() []cli.Command {
 					Name:     FlagNewCluster,
 					Usage:    "New cluster name",
 					Required: true,
+				},
+				cli.BoolFlag{
+					Name:  FlagConnectionEnable,
+					Usage: "connection enabled",
 				},
 			),
 			Action: func(c *cli.Context) {
@@ -569,6 +573,22 @@ func newAdminClusterCommands() []cli.Command {
 			),
 			Action: func(c *cli.Context) {
 				AdminRemoveRemoteClusterFromDB(c)
+			},
+		},
+		{
+			Name:    "list",
+			Aliases: []string{"ls"},
+			Usage:   "List clusters information",
+			Flags: append(
+				getDBFlags(),
+				cli.IntFlag{
+					Name:  FlagPageSize,
+					Value: 100,
+					Usage: "Page size (optional, default: 100)",
+				},
+			),
+			Action: func(c *cli.Context) {
+				AdminListClusters(c)
 			},
 		},
 	}

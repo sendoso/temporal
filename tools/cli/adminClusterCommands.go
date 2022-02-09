@@ -86,6 +86,7 @@ func AdminRemoveRemoteCluster(c *cli.Context) {
 func AdminUpdateClusterName(c *cli.Context) {
 	currentCluster := c.String(FlagCluster)
 	newCluster := c.String(FlagNewCluster)
+	connectionEnabled := c.Bool(FlagConnectionEnable)
 
 	session := connectToCassandra(c)
 	clusterStore, err := cassandra.NewClusterMetadataStore(session, log.NewNoopLogger())
@@ -99,6 +100,17 @@ func AdminUpdateClusterName(c *cli.Context) {
 		ErrorAndExit("Failed to get current cluster metadata", err)
 	}
 
+	var version int64
+	var initialFailoverVersion int64
+	if newCluster != currentCluster {
+		// new record
+		version = 0
+		initialFailoverVersion = currentClusterMetadata.InitialFailoverVersion + 1
+	} else {
+		version = currentClusterMetadata.Version
+		initialFailoverVersion = currentClusterMetadata.InitialFailoverVersion
+	}
+
 	applied, err := clusterMetadataManager.SaveClusterMetadata(&persistence.SaveClusterMetadataRequest{
 		ClusterMetadata: persistencespb.ClusterMetadata{
 			ClusterName:              newCluster,
@@ -108,20 +120,20 @@ func AdminUpdateClusterName(c *cli.Context) {
 			IndexSearchAttributes:    currentClusterMetadata.IndexSearchAttributes,
 			ClusterAddress:           currentClusterMetadata.ClusterAddress,
 			FailoverVersionIncrement: currentClusterMetadata.FailoverVersionIncrement,
-			InitialFailoverVersion:   currentClusterMetadata.InitialFailoverVersion,
+			InitialFailoverVersion:   initialFailoverVersion,
 			IsGlobalNamespaceEnabled: currentClusterMetadata.IsGlobalNamespaceEnabled,
-			IsConnectionEnabled:      currentClusterMetadata.IsConnectionEnabled,
+			IsConnectionEnabled:      connectionEnabled,
 		},
-		Version: 0,
+		Version: version,
 	})
 	if !applied || err != nil {
 		ErrorAndExit("Failed to create new cluster metadata", err)
 	}
 	// Use raw store client to delete
-	err = clusterStore.DeleteClusterMetadata(&persistence.InternalDeleteClusterMetadataRequest{ClusterName: currentCluster})
-	if err != nil {
-		ErrorAndExit("Failed to delete old cluster metadata", err)
-	}
+	//err = clusterStore.DeleteClusterMetadata(&persistence.InternalDeleteClusterMetadataRequest{ClusterName: currentCluster})
+	//if err != nil {
+	//	ErrorAndExit("Failed to delete old cluster metadata", err)
+	//}
 	fmt.Println("Successfully updated cluster name from ", currentCluster, " to ", newCluster)
 }
 
@@ -138,6 +150,37 @@ func AdminRemoveRemoteClusterFromDB(c *cli.Context) {
 	err = clusterMetadataManager.DeleteClusterMetadata(&persistence.DeleteClusterMetadataRequest{ClusterName: currentCluster})
 	if err != nil {
 		ErrorAndExit("Failed to delete cluster metadata", err)
+	}
+}
+
+func AdminListClusters(c *cli.Context) {
+	session := connectToCassandra(c)
+	clusterStore, err := cassandra.NewClusterMetadataStore(session, log.NewNoopLogger())
+	if err != nil {
+		ErrorAndExit("Failed to connect to Cassandra", err)
+	}
+	clusterMetadataManager := persistence.NewClusterMetadataManagerImpl(clusterStore, "", log.NewNoopLogger())
+
+	pageSize := c.Int(FlagPageSize)
+	var token []byte
+	for more := true; more; more = len(token) > 0 {
+		if more && len(token) > 0 {
+			if !showNextPage() {
+				break
+			}
+		}
+
+		response, err := clusterMetadataManager.ListClusterMetadata(&persistence.ListClusterMetadataRequest{
+			PageSize:      pageSize,
+			NextPageToken: token,
+		})
+		if err != nil {
+			ErrorAndExit("Operation ListClusters failed.", err)
+		}
+		token = response.NextPageToken
+		if len(response.ClusterMetadata) > 0 {
+			prettyPrintJSONObject(response.ClusterMetadata)
+		}
 	}
 }
 
