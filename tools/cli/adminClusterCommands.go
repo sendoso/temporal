@@ -152,6 +152,7 @@ func AdminUpdateClusterLevel(c *cli.Context) {
 	}
 	delete(resp.ShardInfo.ClusterTransferAckLevel, currentCluster)
 	delete(resp.ShardInfo.ClusterTimerAckLevel, currentCluster)
+	resp.ShardInfo.RangeId = resp.ShardInfo.RangeId + 1
 	err = shardManager.UpdateShard(&persistence.UpdateShardRequest{
 		ShardInfo:       resp.ShardInfo,
 		PreviousRangeID: resp.ShardInfo.RangeId,
