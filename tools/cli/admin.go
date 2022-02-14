@@ -576,6 +576,27 @@ func newAdminClusterCommands() []cli.Command {
 			},
 		},
 		{
+			Name:    "delete-ack-level",
+			Aliases: []string{"dal"},
+			Usage:   "Delete ack level",
+			Flags: append(
+				getDBFlags(),
+				cli.StringFlag{
+					Name:     FlagCluster,
+					Usage:    "Original cluster name",
+					Required: true,
+				},
+				cli.IntFlag{
+					Name:     FlagShardID,
+					Usage:    "Shard id",
+					Required: true,
+				},
+			),
+			Action: func(c *cli.Context) {
+				AdminUpdateClusterLevel(c)
+			},
+		},
+		{
 			Name:    "list",
 			Aliases: []string{"ls"},
 			Usage:   "List clusters information",

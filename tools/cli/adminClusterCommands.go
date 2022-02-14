@@ -137,6 +137,30 @@ func AdminUpdateClusterName(c *cli.Context) {
 	fmt.Println("Successfully updated cluster name from ", currentCluster, " to ", newCluster)
 }
 
+func AdminUpdateClusterLevel(c *cli.Context) {
+	currentCluster := c.String(FlagCluster)
+	shardId := c.Int(FlagShardID)
+
+	session := connectToCassandra(c)
+	shardStore := cassandra.NewShardStore(currentCluster, session, log.NewNoopLogger())
+	shardManager := persistence.NewShardManager(shardStore)
+	resp, err := shardManager.GetOrCreateShard(&persistence.GetOrCreateShardRequest{
+		ShardID: int32(shardId),
+	})
+	if err != nil {
+		ErrorAndExit("Failed to get shard info", err)
+	}
+	delete(resp.ShardInfo.ClusterTransferAckLevel, currentCluster)
+	delete(resp.ShardInfo.ClusterTimerAckLevel, currentCluster)
+	err = shardManager.UpdateShard(&persistence.UpdateShardRequest{
+		ShardInfo:       resp.ShardInfo,
+		PreviousRangeID: resp.ShardInfo.RangeId,
+	})
+	if err != nil {
+		ErrorAndExit("Failed to remove legacy ack levels from shard info", err)
+	}
+}
+
 func AdminRemoveRemoteClusterFromDB(c *cli.Context) {
 	currentCluster := c.String(FlagCluster)
 
