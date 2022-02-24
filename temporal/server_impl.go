@@ -158,7 +158,7 @@ func (s *ServerImpl) Stop() {
 }
 
 // Populates parameters for a service
-func newBootstrapParams(
+func NewBootstrapParams(
 	logger log.Logger,
 	namespaceLogger NamespaceLogger,
 	cfg *config.Config,
